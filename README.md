@@ -1,5 +1,6 @@
 ## postgresimport
 =============================
+
 A simple go utility to import a postgres table in CSV using concurrent partitions.
 
 Install 
