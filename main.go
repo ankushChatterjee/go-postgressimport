@@ -72,7 +72,7 @@ func main() {
 		}
 		tempFiles[i/2] = file
 		wg.Add(1)
-		go loader.ReadPartion(db, low, high, *keyName, *tableName, *batchSize, file, i/2, &wg)
+		go loader.LoadPartition(db, low, high, *keyName, *tableName, *batchSize, file, i/2, &wg)
 		if err != nil {
 			panic(err)
 		}

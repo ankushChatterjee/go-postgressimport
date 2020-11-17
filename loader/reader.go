@@ -2,14 +2,14 @@ package loader
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 )
 
-// ReadPartion : Reading a partition
-func ReadPartion(db *sql.DB, low string, high string, keyName string, tableName string, batchSize int, file *os.File, id int, wg *sync.WaitGroup) {
+// LoadPartition : Reading a partition
+func LoadPartition(db *sql.DB, low string, high string, keyName string, tableName string, batchSize int, file *os.File, id int, wg *sync.WaitGroup) {
 
 	rows, err := db.Query(fmt.Sprintf("SELECT * FROM %s WHERE %s >= %s AND %s <= %s", tableName, keyName, low, keyName, high))
 	defer wg.Done()
@@ -17,8 +17,10 @@ func ReadPartion(db *sql.DB, low string, high string, keyName string, tableName 
 		panic(err)
 	}
 	defer rows.Close()
-	var csvRows strings.Builder
+	csvRows := make([][]string, 0)
 	numRows := 0
+	csvWriter := csv.NewWriter(file)
+	defer csvWriter.Flush()
 
 	for rows.Next() {
 		cols, err := rows.Columns()
@@ -34,18 +36,21 @@ func ReadPartion(db *sql.DB, low string, high string, keyName string, tableName 
 		if err != nil {
 			panic(err)
 		}
-		var csvRow strings.Builder
+		dataStr := make([]string, 0)
 		for _, d := range data {
-			csvRow.WriteString(*d.(*string) + ",")
+			dataStr = append(dataStr, *d.(*string))
 		}
-		csvRows.WriteString(csvRow.String() + "\n")
+
+		csvRows = append(csvRows, dataStr)
 		numRows++
 		if numRows == batchSize {
-			file.WriteString(csvRows.String())
-			csvRows.Reset()
+			csvWriter.WriteAll(csvRows)
+			csvWriter.Flush()
+			csvRows = make([][]string, 0)
 		}
 	}
-	file.WriteString(csvRows.String())
-
+	csvWriter.WriteAll(csvRows)
+	csvWriter.Flush()
+	csvRows = make([][]string, 0)
 	fmt.Printf("Parition %d Completed loading \n", id)
 }
